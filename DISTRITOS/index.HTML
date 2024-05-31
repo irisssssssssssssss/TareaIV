@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distritos</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        #treemapContainer,
+        #circlePackContainer,
+        #radialContainer,
+        #partitionContainer {
+            height: 400px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gráficos de distritos | Santiago Moreno 2022040858</h1>
+    <div id="radialContainer"></div>
+    <div id="treemapContainer"></div>
+    <div id="partitionContainer"></div>
+    <div id ="circlePackContainer"></div>
+
+    <script>
+        //cargar
+        d3.csv("distritos.csv").then(function(data) {
+            data.forEach(function(d) {
+                d.AREA_KM2 = +d.AREA_KM2;
+                d.POBL_2011 = +d.POBL_2011;
+            });
+        //treemap
+        var treemapLayout = d3.treemap()
+            .size([document.getElementById("treemapContainer").offsetWidth, 400]) 
+            .padding(1)
+            .round(true);
+
+        var rootTreemap = d3.hierarchy({ children: data })
+            .sum(function(d) { return d.AREA_KM2; });
+
+        treemapLayout(rootTreemap);
+
+        var treemapSvg = d3.select("#treemapContainer")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%");
+
+        treemapSvg.selectAll("rect")
+            .data(rootTreemap.leaves())
+            .enter()
+            .append("rect")
+            .attr("x", function(d) { return d.x0; })
+            .attr("y", function(d) { return d.y0; })
+            .attr("width", function(d) { return d.x1 - d.x0; })
+            .attr("height", function(d) { return d.y1 - d.y0; })
+            .attr("fill", "pink")
+            .append("title")
+            .text(function(d) { return d.data.DISTRITO; });
+
+        //radial
+        var radialLayout = d3.cluster()
+            .size([2 * Math.PI, 200])
+            .separation(function(a, b) { return (a.parent == b.parent ? 1 : 2) / a.depth; });
+
+        var rootRadial = d3.hierarchy({ children: data })
+            .sum(function(d) { return d.POBL_2011 || 0; });
+
+        radialLayout(rootRadial);
+
+        var radialSvg = d3.select("#radialContainer")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", 400)
+            .append("g")
+            .attr("transform", "translate(" + document.getElementById("radialContainer").offsetWidth / 2 + "," + 200 + ")");
+
+        radialSvg.selectAll("path")
+            .data(rootRadial.links())
+            .enter()
+            .append("path")
+            .attr("d", d3.linkRadial()
+                .angle(function(d) { return d.x; })
+                .radius(function(d) { return d.y; })
+            );
+
+        radialSvg.selectAll("circle")
+            .data(rootRadial.descendants())
+            .enter()
+            .append("circle")
+            .attr("transform", function(d) {
+                return "rotate(" + (d.x * 180 / Math.PI - 90) + ")translate(" + d.y + ")";
+            })
+            .attr("r", 4)
+            .attr("fill", "violet")
+            .append("title")
+            .text(function(d) { return d.data.DISTRITO; });
+
+        var partitionLayout = d3.partition()
+            .size([document.getElementById("partitionContainer").offsetWidth, 400]) // Adjust size as needed
+            .padding(1);
+
+        var rootPartition = d3.hierarchy({ children: data })
+            .sum(function(d) { return d.POBL_2011 || 0; })
+            .sort(function(a, b) { return b.value - a.value; });
+
+        partitionLayout(rootPartition);
+
+        var partitionSvg = d3.select("#partitionContainer")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", 400) // Adjust height as needed
+            .append("g")
+            .attr("transform", "translate(0,0)");
+
+        partitionSvg.selectAll("rect")
+            .data(rootPartition.descendants())
+            .enter()
+            .append("rect")
+            .attr("x", function(d) { return d.x0; })
+            .attr("y", function(d) { return d.y0; })
+            .attr("width", function(d) { return d.x1 - d.x0; })
+            .attr("height", function(d) { return d.y1 - d.y0; })
+            .attr("fill", "green")
+            .append("title")
+            .text(function(d) { return d.data.DISTRITO; });
+
+        partitionSvg.selectAll("text")
+            .data(rootPartition.descendants())
+            .enter()
+            .append("text")
+            .attr("x", function(d) { return d.x0 + 5; })
+            .attr("y", function(d) { return d.y0 + 20; })
+            .text(function(d) { return d.data.DISTRITO; })
+            .attr("font-size", "12px")
+            .attr("fill", "white");
+        // circle packing
+        var circlePackLayout = d3.pack()
+            .size([document.getElementById("circlePackContainer").offsetWidth, 400]) // Adjust size as needed
+            .padding(1);
+
+        var rootCirclePack = d3.hierarchy({ children: data })
+            .sum(function(d) { return d.POBL_2011 || 0; });
+
+        circlePackLayout(rootCirclePack);
+
+        var circlePackSvg = d3.select("#circlePackContainer")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", 400) // Adjust height as needed
+            .append("g")
+            .attr("transform", "translate(" + document.getElementById("circlePackContainer").offsetWidth ,100);
+
+        circlePackSvg.selectAll("circle")
+            .data(rootCirclePack.descendants())
+            .enter()
+            .append("circle")
+            .attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; })
+            .attr("r", function(d) { return d.r; })
+            .attr("fill", "red")
+            .append("title")
+            .text(function(d) { return d.data.DISTRITO; });
+
+        circlePackSvg.selectAll("text")
+            .data(rootCirclePack.descendants())
+            .enter()
+            .append("text")
+            .attr("x", function(d) { return d.x; })
+            .attr("y", function(d) { return d.y; })
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
+            .text(function(d) { return d.data.DISTRITO; })
+            .attr("font-size", "12px")
+            .attr("fill", "black");
+
+        });
+    </script>
+</body>
+</html>
